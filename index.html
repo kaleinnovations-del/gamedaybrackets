@@ -156,7 +156,7 @@
     </div>
     <div id="roundsCell" style="display:none">
       <label for="rounds">Rounds to play</label>
-      <input type="number" id="rounds" min="2" max="20" value="6">
+      <input type="number" id="rounds" min="2" max="40" value="6">
       <div class="hint">Each player gets a new partner every round.</div>
     </div>
     <div class="names-cell">
@@ -347,61 +347,69 @@
     out.appendChild(wrap);
   }
 
-  // ---- social mixer: rotating partners, balanced opponents ----
-  function circleMatchings(n){
-    var t=[]; for(var i=0;i<n;i++) t.push(i);
-    if(t.length%2) t.push(-1);
-    var m=t.length, rounds=m-1, out=[];
-    for(var r=0;r<rounds;r++){
-      var ps=[], sit=null;
-      for(var i=0;i<m/2;i++){ var a=t[i], b=t[m-1-i];
-        if(a===-1) sit=b; else if(b===-1) sit=a; else ps.push([a,b]); }
-      out.push({partnerships:ps, sit:sit});
-      t.splice(1,0,t.pop());
-    }
-    return out;
-  }
+  // ---- social mixer: rotating partners, everyone partners everyone ----
   function pkey(a,b){ return Math.min(a,b)+'-'+Math.max(a,b); }
-  function buildMixer(names, maxRounds){
-    var n=names.length, base=circleMatchings(n);
-    var rounds=Math.min(maxRounds||(n-1), base.length);
-    var best=null, bestScore=1e9, bestSpread=1e9;
-    for(var attempt=0; attempt<600; attempt++){
-      var oppSeen={}, sched=[], repOpp=0, games={};
-      for(var i=0;i<n;i++) games[i]=0;
+  function lt(a,b){ for(var i=0;i<a.length;i++){ if(a[i]!==b[i]) return a[i]<b[i]; } return false; }
+  function minMixerRounds(n){ var courts=Math.floor(n/4); if(courts<1) return 1; return Math.ceil((n*(n-1)/2)/(2*courts)); }
+  function pickPartner(a, cand, played, games){
+    var best=cand[0], bestK=null;
+    cand.forEach(function(x){ var k=[(played[pkey(a,x)]||0), games[x], Math.random()]; if(!bestK||lt(k,bestK)){bestK=k;best=x;} });
+    return best;
+  }
+  function pickOpp(c2, cand, played, games, opp, a, b){
+    var best=cand[0], bestK=null;
+    cand.forEach(function(x){
+      var oppRep=(opp[pkey(a,c2)]||0)+(opp[pkey(b,c2)]||0)+(opp[pkey(a,x)]||0)+(opp[pkey(b,x)]||0);
+      var k=[(played[pkey(c2,x)]||0), oppRep, games[x], Math.random()];
+      if(!bestK||lt(k,bestK)){bestK=k;best=x;}
+    });
+    return best;
+  }
+  function buildMixer(names, requestedRounds){
+    var n=names.length, courts=Math.floor(n/4);
+    if(courts<1) return {schedule:[], rounds:0, minRounds:0};
+    var minRounds=minMixerRounds(n);
+    var rounds=requestedRounds||minRounds;
+    var best=null, bestKey=null;
+    for(var attempt=0; attempt<1200; attempt++){
+      var played={}, opp={}, games=new Array(n).fill(0), sched=[];
       for(var r=0;r<rounds;r++){
-        var ps=base[r].partnerships.slice();
-        for(var i=ps.length-1;i>0;i--){ var j=(Math.random()*(i+1))|0; var tmp=ps[i];ps[i]=ps[j];ps[j]=tmp; }
-        var sitters=[];
-        if(ps.length%2){ var idx=0,mx=-1; for(var i=0;i<ps.length;i++){var g=games[ps[i][0]]+games[ps[i][1]]; if(g>mx){mx=g;idx=i;}} sitters.push(ps.splice(idx,1)[0]); }
-        var courts=[], used=new Array(ps.length).fill(false);
-        for(var i=0;i<ps.length;i++){
-          if(used[i])continue;
-          var bestJ=-1,bestRep=99;
-          for(var j=i+1;j<ps.length;j++){ if(used[j])continue;
-            var rep=0,P=ps[i],Q=ps[j];
-            [[P[0],Q[0]],[P[0],Q[1]],[P[1],Q[0]],[P[1],Q[1]]].forEach(function(pr){ if(oppSeen[pkey(pr[0],pr[1])]) rep++; });
-            if(rep<bestRep){bestRep=rep;bestJ=j; if(rep===0)break;}
-          }
-          if(bestJ>=0){ used[i]=used[bestJ]=true; courts.push([ps[i],ps[bestJ]]); repOpp+=bestRep;
-            var P=ps[i],Q=ps[bestJ];
-            [[P[0],Q[0]],[P[0],Q[1]],[P[1],Q[0]],[P[1],Q[1]]].forEach(function(pr){ oppSeen[pkey(pr[0],pr[1])]=1; });
-            [P[0],P[1],Q[0],Q[1]].forEach(function(p){ games[p]++; });
-          } else { used[i]=true; sitters.push(ps[i]); }
+        var pool=[]; for(var i=0;i<n;i++) pool.push(i);
+        pool.sort(function(a,b){ return (games[a]-games[b]) || (Math.random()-0.5); });
+        var taken={}, courtList=[];
+        for(var c=0;c<courts;c++){
+          var avail=pool.filter(function(p){ return !taken[p]; });
+          if(avail.length<4) break;
+          var a=avail[0];
+          var b=pickPartner(a, avail.slice(1), played, games);
+          var rem=avail.filter(function(p){ return p!==a && p!==b; });
+          var c2=rem[0];
+          var d=pickOpp(c2, rem.slice(1), played, games, opp, a, b);
+          taken[a]=taken[b]=taken[c2]=taken[d]=true;
+          courtList.push([[a,b],[c2,d]]);
+          played[pkey(a,b)]=(played[pkey(a,b)]||0)+1; played[pkey(c2,d)]=(played[pkey(c2,d)]||0)+1;
+          [[a,c2],[a,d],[b,c2],[b,d]].forEach(function(pr){ opp[pkey(pr[0],pr[1])]=(opp[pkey(pr[0],pr[1])]||0)+1; });
+          [a,b,c2,d].forEach(function(p){ games[p]++; });
         }
-        sched.push({courts:courts, sit:base[r].sit, sitters:sitters});
+        sched.push(courtList);
       }
-      var gv=Object.keys(games).map(function(k){return games[k];});
-      var spread=Math.max.apply(0,gv)-Math.min.apply(0,gv);
-      if(repOpp<bestScore || (repOpp===bestScore && spread<bestSpread)){ bestScore=repOpp; bestSpread=spread; best=sched; }
-      if(bestScore===0 && bestSpread<=1) break;
+      var unplayed=0, partnerReps=0;
+      for(var i=0;i<n;i++) for(var j=i+1;j<n;j++){ var pc=played[pkey(i,j)]||0; if(pc===0) unplayed++; else partnerReps+=(pc-1); }
+      var oppReps=0; for(var k in opp) oppReps+=(opp[k]-1);
+      var spread=Math.max.apply(0,games)-Math.min.apply(0,games);
+      var key=[unplayed, partnerReps, spread, oppReps];
+      if(!bestKey || lt(key,bestKey)){ bestKey=key; best={schedule:sched, rounds:rounds, minRounds:minRounds}; }
+      if(unplayed===0 && partnerReps===0 && spread<=1) break;
     }
-    return {schedule:best, rounds:rounds};
+    return best;
   }
   function renderMixer(out){
-    var mx=state.mixer, names=state.names;
+    var mx=state.mixer, names=state.names, n=names.length;
+    var full = mx.rounds>=mx.minRounds;
     var note=document.createElement('p'); note.style.cssText='color:#7a7163;font-size:.85rem;margin:6px 0 12px';
-    note.textContent='Rotating partners — you play with a different partner every round. Print it, run the rounds, then total each player’s wins.';
+    note.textContent = 'Rotating partners — a new partner every round. ' + (full
+      ? 'Over all '+mx.rounds+' rounds, everyone partners with everyone.'
+      : 'Showing '+mx.rounds+' rounds (play '+mx.minRounds+' for everyone to partner everyone).');
     out.appendChild(note);
     var wrap=document.createElement('div'); wrap.className='rr-wrap';
     var sd=document.createElement('div'); sd.className='rr-sched';
@@ -410,16 +418,16 @@
     mx.schedule.forEach(function(rd,ri){
       var rdiv=document.createElement('div'); rdiv.className='rr-round';
       var h=document.createElement('h3'); h.textContent='Round '+(ri+1); rdiv.appendChild(h);
-      rd.courts.forEach(function(c,ci){
-        var P=c[0],Q=c[1];
+      var playing={};
+      rd.forEach(function(ct,ci){
+        var P=ct[0],Q=ct[1];
+        [P[0],P[1],Q[0],Q[1]].forEach(function(p){ playing[p]=1; });
         var mEl=document.createElement('div'); mEl.className='rr-match';
         mEl.innerHTML='<span style="color:#a99;font-size:.78rem">C'+(ci+1)+'</span><span>'+nm(P[0])+' & '+nm(P[1])+'</span><span class="vs">vs</span><span>'+nm(Q[0])+' & '+nm(Q[1])+'</span>'+
           '<span class="sc"><input type="text" maxlength="2" aria-label="score"><input type="text" maxlength="2" aria-label="score"></span>';
         rdiv.appendChild(mEl);
       });
-      var sitting=[];
-      if(rd.sit!=null && rd.sit>=0) sitting.push(names[rd.sit]);
-      (rd.sitters||[]).forEach(function(p){ sitting.push(names[p[0]]); sitting.push(names[p[1]]); });
+      var sitting=[]; for(var i=0;i<n;i++){ if(!playing[i]) sitting.push(names[i]); }
       if(sitting.length){ var bb=document.createElement('div'); bb.className='rr-bye'; bb.textContent='Sitting out: '+sitting.map(escapeHtml).join(', '); rdiv.appendChild(bb); }
       sd.appendChild(rdiv);
     });
@@ -542,7 +550,8 @@
       state={format:'rr', names:names, schedule:buildRR(names)};
       render();
     } else if(fmt==='mixer'){
-      var rounds=clamp($('rounds').value, 2, Math.max(2,count-1));
+      var minR=minMixerRounds(count);
+      var rounds=clamp($('rounds').value, 2, minR);
       state={format:'mixer', names:names, mixer:buildMixer(names, rounds)};
       render();
     } else {
@@ -569,8 +578,15 @@
   $('rand').onclick=randomize;
   $('clear').onclick=clearNames;
   $('print').onclick=function(){ window.print(); };
-  $('format').onchange=function(){ buildNameInputs(clamp($('count').value,1,32)); generate(); };
-  $('count').addEventListener('input', function(){ buildNameInputs(clamp(this.value,1,32)); });
+  function syncMixerRounds(count){ var m=minMixerRounds(count); $('rounds').max=m; $('rounds').value=m; }
+  $('format').onchange=function(){
+    if(this.value==='mixer') syncMixerRounds(clamp($('count').value,4,32));
+    buildNameInputs(clamp($('count').value,1,32)); generate();
+  };
+  $('count').addEventListener('input', function(){
+    if($('format').value==='mixer') syncMixerRounds(clamp(this.value,4,32));
+    buildNameInputs(clamp(this.value,1,32));
+  });
   $('rounds').addEventListener('input', function(){ if($('format').value==='mixer') generate(); });
 
   // URL presets from landing pages: ?teams=16&format=rr|double|single|mixer
@@ -587,6 +603,7 @@
     $('appSub').textContent='Single elimination, double elimination, or round robin for 3–32 cornhole teams — seed it, print it, run your tournament. Free, no sign-up.';
   }
 
+  if($('format').value==='mixer') syncMixerRounds(clamp($('count').value,4,32));
   buildNameInputs(clamp($('count').value,3,32)||8);
   generate();
 })();
