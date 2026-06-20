@@ -147,11 +147,17 @@
         <option value="single">Single elimination</option>
         <option value="double">Double elimination (printable)</option>
         <option value="rr">Round robin (everyone plays everyone)</option>
+        <option value="mixer">Social mixer (rotating partners)</option>
       </select>
     </div>
     <div>
       <label for="tname">Tournament name (optional)</label>
       <input type="text" id="tname" placeholder="e.g. Backyard Bag Toss 2026">
+    </div>
+    <div id="roundsCell" style="display:none">
+      <label for="rounds">Rounds to play</label>
+      <input type="number" id="rounds" min="2" max="20" value="6">
+      <div class="hint">Each player gets a new partner every round.</div>
     </div>
     <div class="names-cell">
       <label>Team / player names <span style="font-weight:400;color:#7a7163">— type them in, or leave as-is to auto-number</span></label>
@@ -170,9 +176,9 @@
 
   <div class="upsell" id="upsell" style="display:none">
     <div class="u-txt">
-      <h2>Stop writing in winners by hand</h2>
-      <p>The <strong>Cornhole Scoring Workbook</strong> does what a printout can't: enter scores and it <strong>advances winners automatically</strong>, runs <strong>pool play</strong> to seed fairly, and keeps <strong>live standings</strong> — in Google Sheets or Excel, on any phone at the event.</p>
-      <p class="u-sub">Up to 16 teams • Pool play + single & double elimination • Printable sheets included • Instant download</p>
+      <h2>Want scores &amp; standings done for you?</h2>
+      <p>The <strong id="upsellName">Cornhole Scoring Workbook</strong> does what a printout can't: enter scores and it <strong>tracks wins, advances bracket winners or rotates mixer partners</strong>, and keeps <strong>live standings</strong> automatically — in Google Sheets or Excel, on any phone at the event.</p>
+      <p class="u-sub">Instant download • Works on phone, tablet or laptop • Printable sheets included</p>
     </div>
     <a class="cta" id="cta" href="https://gamedaybrackets.gumroad.com/l/xhnlby?utm_source=brackettool&utm_medium=cta&utm_campaign=cornhole_free_tool" target="_blank" rel="noopener">Get the Scoring Workbook — $11.99</a>
   </div>
@@ -210,22 +216,40 @@
   var $=function(id){return document.getElementById(id)};
   function clamp(v,lo,hi){ v=parseInt(v)||0; return Math.max(lo,Math.min(hi,v)); }
 
+  // sport/format-aware upsell so pickleball traffic funnels to the pickleball product
+  var sportMode='cornhole';
+  var PRODUCTS={
+    cornhole:{url:'https://gamedaybrackets.gumroad.com/l/xhnlby', label:'Get the Scoring Workbook — $11.99', name:'Cornhole Scoring Workbook'},
+    pickleball_mixer:{url:'https://gamedaybrackets.gumroad.com/l/trrjsh', label:'Get the Social Mixer Workbook — $9.99', name:'Pickleball Social Doubles Mixer'},
+    pickleball_rr:{url:'https://gamedaybrackets.gumroad.com/l/zxktbu', label:'Get the Round Robin Workbook — $9.99', name:'Pickleball Doubles Round Robin'}
+  };
+  function updateUpsell(){
+    var fmt=$('format').value, p;
+    if(sportMode==='pickleball') p=(fmt==='mixer')?PRODUCTS.pickleball_mixer:PRODUCTS.pickleball_rr;
+    else p=PRODUCTS.cornhole;
+    var cta=$('cta');
+    cta.href=p.url+'?utm_source=brackettool&utm_medium=cta&utm_campaign='+sportMode+'_'+fmt;
+    cta.textContent=p.label;
+    var nmEl=$('upsellName'); if(nmEl) nmEl.textContent=p.name;
+  }
+
   // ---- friendly per-team name inputs ----
+  function teamWord(){ return ($('format') && $('format').value==='mixer') ? 'Player' : 'Team'; }
   function buildNameInputs(count){
-    var grid=$('nameGrid'), prev=[];
+    var grid=$('nameGrid'), prev=[], w=teamWord();
     grid.querySelectorAll('input').forEach(function(inp,i){ prev[i]=inp.value; });
     grid.innerHTML='';
     for(var i=0;i<count;i++){
       var row=document.createElement('div'); row.className='ng-row';
       var num=document.createElement('span'); num.className='ng-num'; num.textContent=(i+1); row.appendChild(num);
-      var inp=document.createElement('input'); inp.type='text'; inp.id='nm-'+i; inp.placeholder='Team '+(i+1);
+      var inp=document.createElement('input'); inp.type='text'; inp.id='nm-'+i; inp.placeholder=w+' '+(i+1);
       if(prev[i]) inp.value=prev[i];
       row.appendChild(inp); grid.appendChild(row);
     }
   }
   function getNames(count){
-    var names=[];
-    for(var i=0;i<count;i++){ var inp=$('nm-'+i); var v=inp&&inp.value.trim(); names.push(v||('Team '+(i+1))); }
+    var names=[], w=teamWord();
+    for(var i=0;i<count;i++){ var inp=$('nm-'+i); var v=inp&&inp.value.trim(); names.push(v||(w+' '+(i+1))); }
     return names;
   }
 
@@ -262,6 +286,7 @@
     var tname=$('tname').value.trim();
     if(tname){ var h=document.createElement('div'); h.className='bracket-title'; h.textContent=tname; out.appendChild(h); }
     if(state.format==='rr'){ renderRR(out); return; }
+    if(state.format==='mixer'){ renderMixer(out); return; }
     if(state.format==='double'){ renderDouble(out); return; }
     renderBracket(out, state.rounds, true);
     showChampion(out);
@@ -318,6 +343,96 @@
     var note=document.createElement('p'); note.className='u-sub'; note.style.cssText='font-size:.78rem;color:#7a7163;margin-top:8px';
     note.textContent='Print and tally W/L by hand — or let the Scoring Workbook total wins and rank standings automatically.';
     st.appendChild(note);
+    wrap.appendChild(st);
+    out.appendChild(wrap);
+  }
+
+  // ---- social mixer: rotating partners, balanced opponents ----
+  function circleMatchings(n){
+    var t=[]; for(var i=0;i<n;i++) t.push(i);
+    if(t.length%2) t.push(-1);
+    var m=t.length, rounds=m-1, out=[];
+    for(var r=0;r<rounds;r++){
+      var ps=[], sit=null;
+      for(var i=0;i<m/2;i++){ var a=t[i], b=t[m-1-i];
+        if(a===-1) sit=b; else if(b===-1) sit=a; else ps.push([a,b]); }
+      out.push({partnerships:ps, sit:sit});
+      t.splice(1,0,t.pop());
+    }
+    return out;
+  }
+  function pkey(a,b){ return Math.min(a,b)+'-'+Math.max(a,b); }
+  function buildMixer(names, maxRounds){
+    var n=names.length, base=circleMatchings(n);
+    var rounds=Math.min(maxRounds||(n-1), base.length);
+    var best=null, bestScore=1e9, bestSpread=1e9;
+    for(var attempt=0; attempt<600; attempt++){
+      var oppSeen={}, sched=[], repOpp=0, games={};
+      for(var i=0;i<n;i++) games[i]=0;
+      for(var r=0;r<rounds;r++){
+        var ps=base[r].partnerships.slice();
+        for(var i=ps.length-1;i>0;i--){ var j=(Math.random()*(i+1))|0; var tmp=ps[i];ps[i]=ps[j];ps[j]=tmp; }
+        var sitters=[];
+        if(ps.length%2){ var idx=0,mx=-1; for(var i=0;i<ps.length;i++){var g=games[ps[i][0]]+games[ps[i][1]]; if(g>mx){mx=g;idx=i;}} sitters.push(ps.splice(idx,1)[0]); }
+        var courts=[], used=new Array(ps.length).fill(false);
+        for(var i=0;i<ps.length;i++){
+          if(used[i])continue;
+          var bestJ=-1,bestRep=99;
+          for(var j=i+1;j<ps.length;j++){ if(used[j])continue;
+            var rep=0,P=ps[i],Q=ps[j];
+            [[P[0],Q[0]],[P[0],Q[1]],[P[1],Q[0]],[P[1],Q[1]]].forEach(function(pr){ if(oppSeen[pkey(pr[0],pr[1])]) rep++; });
+            if(rep<bestRep){bestRep=rep;bestJ=j; if(rep===0)break;}
+          }
+          if(bestJ>=0){ used[i]=used[bestJ]=true; courts.push([ps[i],ps[bestJ]]); repOpp+=bestRep;
+            var P=ps[i],Q=ps[bestJ];
+            [[P[0],Q[0]],[P[0],Q[1]],[P[1],Q[0]],[P[1],Q[1]]].forEach(function(pr){ oppSeen[pkey(pr[0],pr[1])]=1; });
+            [P[0],P[1],Q[0],Q[1]].forEach(function(p){ games[p]++; });
+          } else { used[i]=true; sitters.push(ps[i]); }
+        }
+        sched.push({courts:courts, sit:base[r].sit, sitters:sitters});
+      }
+      var gv=Object.keys(games).map(function(k){return games[k];});
+      var spread=Math.max.apply(0,gv)-Math.min.apply(0,gv);
+      if(repOpp<bestScore || (repOpp===bestScore && spread<bestSpread)){ bestScore=repOpp; bestSpread=spread; best=sched; }
+      if(bestScore===0 && bestSpread<=1) break;
+    }
+    return {schedule:best, rounds:rounds};
+  }
+  function renderMixer(out){
+    var mx=state.mixer, names=state.names;
+    var note=document.createElement('p'); note.style.cssText='color:#7a7163;font-size:.85rem;margin:6px 0 12px';
+    note.textContent='Rotating partners — you play with a different partner every round. Print it, run the rounds, then total each player’s wins.';
+    out.appendChild(note);
+    var wrap=document.createElement('div'); wrap.className='rr-wrap';
+    var sd=document.createElement('div'); sd.className='rr-sched';
+    var sh=document.createElement('div'); sh.className='bracket-title'; sh.textContent='Round-by-round (Court: pair vs pair)'; sd.appendChild(sh);
+    var nm=function(i){ return escapeHtml(names[i]); };
+    mx.schedule.forEach(function(rd,ri){
+      var rdiv=document.createElement('div'); rdiv.className='rr-round';
+      var h=document.createElement('h3'); h.textContent='Round '+(ri+1); rdiv.appendChild(h);
+      rd.courts.forEach(function(c,ci){
+        var P=c[0],Q=c[1];
+        var mEl=document.createElement('div'); mEl.className='rr-match';
+        mEl.innerHTML='<span style="color:#a99;font-size:.78rem">C'+(ci+1)+'</span><span>'+nm(P[0])+' & '+nm(P[1])+'</span><span class="vs">vs</span><span>'+nm(Q[0])+' & '+nm(Q[1])+'</span>'+
+          '<span class="sc"><input type="text" maxlength="2" aria-label="score"><input type="text" maxlength="2" aria-label="score"></span>';
+        rdiv.appendChild(mEl);
+      });
+      var sitting=[];
+      if(rd.sit!=null && rd.sit>=0) sitting.push(names[rd.sit]);
+      (rd.sitters||[]).forEach(function(p){ sitting.push(names[p[0]]); sitting.push(names[p[1]]); });
+      if(sitting.length){ var bb=document.createElement('div'); bb.className='rr-bye'; bb.textContent='Sitting out: '+sitting.map(escapeHtml).join(', '); rdiv.appendChild(bb); }
+      sd.appendChild(rdiv);
+    });
+    wrap.appendChild(sd);
+    var st=document.createElement('div'); st.className='rr-stand';
+    var sth=document.createElement('div'); sth.className='bracket-title'; sth.textContent='Individual standings'; st.appendChild(sth);
+    var tbl=document.createElement('table'); tbl.className='standings';
+    tbl.innerHTML='<tr><th>Player</th><th>W</th><th>L</th></tr>';
+    names.forEach(function(name){ var tr=document.createElement('tr'); tr.innerHTML='<td>'+escapeHtml(name)+'</td><td class="c">·</td><td class="c">·</td>'; tbl.appendChild(tr); });
+    st.appendChild(tbl);
+    var n2=document.createElement('p'); n2.className='u-sub'; n2.style.cssText='font-size:.78rem;color:#7a7163;margin-top:8px';
+    n2.textContent='Tally each player’s wins to rank them — or let the Scoring Workbook total it automatically.';
+    st.appendChild(n2);
     wrap.appendChild(st);
     out.appendChild(wrap);
   }
@@ -415,19 +530,27 @@
   function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
   function generate(){
-    var count=clamp($('count').value,3,32); if(count<3) count=8;
+    var fmt=$('format').value;
+    var minN = fmt==='mixer' ? 4 : 3;
+    var count=clamp($('count').value, minN, 32);
     $('count').value=count;
+    $('count').min=minN;
+    $('roundsCell').style.display = fmt==='mixer' ? '' : 'none';
     if($('nameGrid').querySelectorAll('input').length!==count) buildNameInputs(count);
     var names=getNames(count);
-    var fmt=$('format').value;
     if(fmt==='rr'){
       state={format:'rr', names:names, schedule:buildRR(names)};
+      render();
+    } else if(fmt==='mixer'){
+      var rounds=clamp($('rounds').value, 2, Math.max(2,count-1));
+      state={format:'mixer', names:names, mixer:buildMixer(names, rounds)};
       render();
     } else {
       state={format:fmt, names:names, rounds:buildSingle(names)};
       autoByes();
       render();
     }
+    updateUpsell();
     $('print').style.display='';
     $('upsell').style.display='';
   }
@@ -446,16 +569,18 @@
   $('rand').onclick=randomize;
   $('clear').onclick=clearNames;
   $('print').onclick=function(){ window.print(); };
-  $('format').onchange=generate;
+  $('format').onchange=function(){ buildNameInputs(clamp($('count').value,1,32)); generate(); };
   $('count').addEventListener('input', function(){ buildNameInputs(clamp(this.value,1,32)); });
+  $('rounds').addEventListener('input', function(){ if($('format').value==='mixer') generate(); });
 
-  // URL presets from landing pages: ?teams=16&format=rr|double|single
+  // URL presets from landing pages: ?teams=16&format=rr|double|single|mixer
   var q=new URLSearchParams(location.search);
   if(q.get('teams')) $('count').value=clamp(q.get('teams'),3,32);
-  var f=q.get('format'); if(f==='single'||f==='double'||f==='rr') $('format').value=f;
+  var f=q.get('format'); if(f==='single'||f==='double'||f==='rr'||f==='mixer') $('format').value=f;
   if(q.get('sport')==='pickleball'){
-    $('appTitle').textContent='Pickleball Tournament & Round Robin Generator';
-    $('appSub').textContent='Round robin, single, or double elimination for 3–32 players or teams — seed it, print it, run your pickleball event. Free, no sign-up.';
+    sportMode='pickleball';
+    $('appTitle').textContent='Pickleball Tournament, Round Robin & Mixer Generator';
+    $('appSub').textContent='Social mixer (rotating partners), round robin, or elimination brackets for 3–32 players — seed it, print it, run your pickleball event. Free, no sign-up.';
   }
 
   buildNameInputs(clamp($('count').value,3,32)||8);
