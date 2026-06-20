@@ -94,11 +94,34 @@
   details summary{font-weight:600;cursor:pointer}
   footer{background:#211d17;color:#cfc7b8;padding:26px 20px;margin-top:40px;font-size:.85rem}
   footer a{color:#f0c989}
+  /* friendly name inputs */
+  .name-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .name-grid .ng-row{display:flex;align-items:center;gap:6px}
+  .name-grid .ng-num{color:#a99;font-size:.78rem;min-width:18px;text-align:right}
+  .name-grid input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;font-size:.9rem;font-family:inherit}
+  .name-grid input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 2px rgba(31,122,61,.15)}
+  /* round robin schedule + standings */
+  .rr-wrap{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;padding:8px 0 20px}
+  .rr-sched{flex:2;min-width:300px}
+  .rr-stand{flex:1;min-width:230px}
+  .rr-round{margin-bottom:14px}
+  .rr-round h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.6px;color:#7a7163;margin:0 0 6px;border-bottom:1px solid var(--line);padding-bottom:3px}
+  .rr-match{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.92rem}
+  .rr-match .vs{color:#b3a89a;font-size:.8rem}
+  .rr-match .sc{margin-left:auto;display:flex;gap:4px}
+  .rr-match .sc input{width:34px;padding:3px 4px;border:1px solid var(--line);border-radius:5px;text-align:center;font-size:.85rem}
+  .rr-bye{color:#b3a89a;font-style:italic;font-size:.86rem;padding:3px 0}
+  table.standings{width:100%;border-collapse:collapse;font-size:.9rem}
+  table.standings th,table.standings td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+  table.standings th{background:#f1ece1;font-size:.78rem;text-transform:uppercase;letter-spacing:.4px;color:#7a7163}
+  table.standings td.c{text-align:center;color:#b3a89a}
   @media print{
     header.site,.controls,.upsell,section.copy,footer,.no-print{display:none!important}
     body{background:#fff}
     .bracket{gap:30px}
     .slot{border-left-color:#888}
+    .rr-wrap{gap:18px}
+    .rr-match .sc input,.name-grid input{border-color:#888}
   }
 </style>
 </head>
@@ -106,8 +129,8 @@
 <header class="site">
   <div class="wrap">
     <span class="badge">Free • No sign-up • Print or share</span>
-    <h1>Cornhole Tournament Bracket Generator</h1>
-    <p>Make a seeded single or double elimination bracket for 4–32 teams in seconds — then print it for your tournament.</p>
+    <h1 id="appTitle">Cornhole Tournament Bracket Generator</h1>
+    <p id="appSub">Single elimination, double elimination, or round robin for 3–32 teams — seed it, print it, run your tournament. Free, no sign-up.</p>
   </div>
 </header>
 
@@ -123,6 +146,7 @@
       <select id="format">
         <option value="single">Single elimination</option>
         <option value="double">Double elimination (printable)</option>
+        <option value="rr">Round robin (everyone plays everyone)</option>
       </select>
     </div>
     <div>
@@ -130,13 +154,14 @@
       <input type="text" id="tname" placeholder="e.g. Backyard Bag Toss 2026">
     </div>
     <div class="names-cell">
-      <label for="names">Team / player names — one per line (seed order, best first)</label>
-      <textarea id="names" placeholder="Team 1&#10;Team 2&#10;Team 3&#10;..."></textarea>
-      <div class="hint">Leave blank to auto-number teams. Names are placed top-seed vs bottom-seed automatically.</div>
+      <label>Team / player names <span style="font-weight:400;color:#7a7163">— type them in, or leave as-is to auto-number</span></label>
+      <div id="nameGrid" class="name-grid"></div>
+      <div class="hint">For brackets, list best teams first (they become the top seeds). Leave any box untouched to keep its number.</div>
     </div>
     <div class="row-btns">
-      <button class="btn-go" id="gen">Generate bracket</button>
-      <button class="btn-sec" id="rand">Randomize seeds</button>
+      <button class="btn-go" id="gen">Generate</button>
+      <button class="btn-sec" id="rand">Shuffle / randomize</button>
+      <button class="btn-sec" id="clear">Clear names</button>
       <button class="btn-sec no-print" id="print" style="display:none">🖨️ Print</button>
     </div>
   </div>
@@ -156,13 +181,13 @@
     <h2>How to make a cornhole tournament bracket</h2>
     <ol>
       <li>Enter your number of teams (3–32).</li>
-      <li>Type each team or player name, one per line, in seed order (best team first). Or leave it blank to auto-number.</li>
-      <li>Pick single or double elimination and click <strong>Generate bracket</strong>.</li>
+      <li>Type each team or player name in its box — or leave them as auto-numbered teams.</li>
+      <li>Pick single elimination, double elimination, or round robin, then click <strong>Generate</strong>.</li>
       <li>Click a name to advance the winner, or hit <strong>Print</strong> and fill it in by hand at the event.</li>
     </ol>
 
-    <h2>Single vs double elimination</h2>
-    <p><strong>Single elimination</strong> is fastest — one loss and you're out. Great for big fields and tight time slots. <strong>Double elimination</strong> gives every team a second chance through a losers bracket, so a single bad round doesn't end your day; it takes longer but feels fairer for league nights and money tournaments.</p>
+    <h2>Single elimination vs double elimination vs round robin</h2>
+    <p><strong>Single elimination</strong> is fastest — one loss and you're out. Great for big fields and tight time slots. <strong>Double elimination</strong> gives every team a second chance through a losers bracket, so a single bad round doesn't end your day. <strong>Round robin</strong> means everyone plays everyone — nobody drives out and goes home after one game, which is why it's the favorite for backyard, social, and league play. Pick round robin when guaranteed games matter more than a fast finish.</p>
 
     <h2>Frequently asked questions</h2>
     <details><summary>Is this really free?</summary><p>Yes — generating, printing, and sharing brackets is free with no sign-up.</p></details>
@@ -183,6 +208,26 @@
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
+  function clamp(v,lo,hi){ v=parseInt(v)||0; return Math.max(lo,Math.min(hi,v)); }
+
+  // ---- friendly per-team name inputs ----
+  function buildNameInputs(count){
+    var grid=$('nameGrid'), prev=[];
+    grid.querySelectorAll('input').forEach(function(inp,i){ prev[i]=inp.value; });
+    grid.innerHTML='';
+    for(var i=0;i<count;i++){
+      var row=document.createElement('div'); row.className='ng-row';
+      var num=document.createElement('span'); num.className='ng-num'; num.textContent=(i+1); row.appendChild(num);
+      var inp=document.createElement('input'); inp.type='text'; inp.id='nm-'+i; inp.placeholder='Team '+(i+1);
+      if(prev[i]) inp.value=prev[i];
+      row.appendChild(inp); grid.appendChild(row);
+    }
+  }
+  function getNames(count){
+    var names=[];
+    for(var i=0;i<count;i++){ var inp=$('nm-'+i); var v=inp&&inp.value.trim(); names.push(v||('Team '+(i+1))); }
+    return names;
+  }
 
   // standard bracket seed order for a power-of-two size
   function seedOrder(size){
@@ -195,13 +240,6 @@
     return arr;
   }
   function nextPow2(n){ var p=1; while(p<n) p*=2; return p; }
-
-  function readNames(count){
-    var raw=$('names').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
-    var names=[];
-    for(var i=0;i<count;i++){ names.push(raw[i] || ('Team '+(i+1))); }
-    return names;
-  }
 
   function buildSingle(names){
     var n=names.length, size=nextPow2(n), order=seedOrder(size);
@@ -223,9 +261,65 @@
     if(!state) return;
     var tname=$('tname').value.trim();
     if(tname){ var h=document.createElement('div'); h.className='bracket-title'; h.textContent=tname; out.appendChild(h); }
+    if(state.format==='rr'){ renderRR(out); return; }
     if(state.format==='double'){ renderDouble(out); return; }
     renderBracket(out, state.rounds, true);
     showChampion(out);
+  }
+
+  // ---- round robin: everyone plays everyone (circle method) ----
+  function buildRR(names){
+    var teams=names.slice();
+    if(teams.length%2) teams.push('__BYE__');
+    var m=teams.length, rounds=m-1, out=[];
+    for(var r=0;r<rounds;r++){
+      var matches=[], byeTeam=null;
+      for(var i=0;i<m/2;i++){
+        var a=teams[i], b=teams[m-1-i];
+        if(a==='__BYE__') byeTeam=b;
+        else if(b==='__BYE__') byeTeam=a;
+        else matches.push([a,b]);
+      }
+      out.push({matches:matches, bye:byeTeam});
+      teams.splice(1,0,teams.pop()); // rotate, keep teams[0] fixed
+    }
+    return out;
+  }
+  function renderRR(out){
+    var sched=state.schedule, names=state.names;
+    var wrap=document.createElement('div'); wrap.className='rr-wrap';
+    // left: schedule
+    var sd=document.createElement('div'); sd.className='rr-sched';
+    var sh=document.createElement('div'); sh.className='bracket-title'; sh.textContent='Match schedule'; sd.appendChild(sh);
+    sched.forEach(function(round,ri){
+      var rd=document.createElement('div'); rd.className='rr-round';
+      var h=document.createElement('h3'); h.textContent='Round '+(ri+1); rd.appendChild(h);
+      round.matches.forEach(function(mm){
+        var mEl=document.createElement('div'); mEl.className='rr-match';
+        mEl.innerHTML='<span>'+escapeHtml(mm[0])+'</span><span class="vs">vs</span><span>'+escapeHtml(mm[1])+'</span>'+
+          '<span class="sc"><input type="text" maxlength="2" aria-label="score for '+escapeHtml(mm[0])+'"><input type="text" maxlength="2" aria-label="score for '+escapeHtml(mm[1])+'"></span>';
+        rd.appendChild(mEl);
+      });
+      if(round.bye){ var bb=document.createElement('div'); bb.className='rr-bye'; bb.textContent='Bye: '+round.bye; rd.appendChild(bb); }
+      sd.appendChild(rd);
+    });
+    wrap.appendChild(sd);
+    // right: blank standings
+    var st=document.createElement('div'); st.className='rr-stand';
+    var sth=document.createElement('div'); sth.className='bracket-title'; sth.textContent='Standings'; st.appendChild(sth);
+    var tbl=document.createElement('table'); tbl.className='standings';
+    tbl.innerHTML='<tr><th>Team</th><th>W</th><th>L</th></tr>';
+    names.forEach(function(nm){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td>'+escapeHtml(nm)+'</td><td class="c">·</td><td class="c">·</td>';
+      tbl.appendChild(tr);
+    });
+    st.appendChild(tbl);
+    var note=document.createElement('p'); note.className='u-sub'; note.style.cssText='font-size:.78rem;color:#7a7163;margin-top:8px';
+    note.textContent='Print and tally W/L by hand — or let the Scoring Workbook total wins and rank standings automatically.';
+    st.appendChild(note);
+    wrap.appendChild(st);
+    out.appendChild(wrap);
   }
 
   function labelRound(idx,total){
@@ -321,33 +415,50 @@
   function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
   function generate(){
-    var count=Math.max(3,Math.min(32,parseInt($('count').value)||8));
+    var count=clamp($('count').value,3,32); if(count<3) count=8;
     $('count').value=count;
-    var names=readNames(count);
-    state={format:$('format').value, names:names, rounds:buildSingle(names)};
-    autoByes();
-    render();
+    if($('nameGrid').querySelectorAll('input').length!==count) buildNameInputs(count);
+    var names=getNames(count);
+    var fmt=$('format').value;
+    if(fmt==='rr'){
+      state={format:'rr', names:names, schedule:buildRR(names)};
+      render();
+    } else {
+      state={format:fmt, names:names, rounds:buildSingle(names)};
+      autoByes();
+      render();
+    }
     $('print').style.display='';
     $('upsell').style.display='';
-    $('upsell').scrollIntoView===undefined;
   }
 
   function randomize(){
-    var count=Math.max(3,Math.min(32,parseInt($('count').value)||8));
-    var names=readNames(count);
+    var count=clamp($('count').value,3,32); if(count<3) count=8;
+    if($('nameGrid').querySelectorAll('input').length!==count) buildNameInputs(count);
+    var names=getNames(count);
     for(var i=names.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=names[i];names[i]=names[j];names[j]=t; }
-    $('names').value=names.join('\n');
+    for(var k=0;k<count;k++){ var inp=$('nm-'+k); if(inp) inp.value=names[k]; }
     generate();
   }
+  function clearNames(){ $('nameGrid').querySelectorAll('input').forEach(function(i){ i.value=''; }); generate(); }
 
   $('gen').onclick=generate;
   $('rand').onclick=randomize;
+  $('clear').onclick=clearNames;
   $('print').onclick=function(){ window.print(); };
+  $('format').onchange=generate;
+  $('count').addEventListener('input', function(){ buildNameInputs(clamp(this.value,1,32)); });
 
-  // allow ?teams=16&format=double presets from landing pages
+  // URL presets from landing pages: ?teams=16&format=rr|double|single
   var q=new URLSearchParams(location.search);
-  if(q.get('teams')) $('count').value=q.get('teams');
-  if(q.get('format')==='double') $('format').value='double';
+  if(q.get('teams')) $('count').value=clamp(q.get('teams'),3,32);
+  var f=q.get('format'); if(f==='single'||f==='double'||f==='rr') $('format').value=f;
+  if(q.get('sport')==='pickleball'){
+    $('appTitle').textContent='Pickleball Tournament & Round Robin Generator';
+    $('appSub').textContent='Round robin, single, or double elimination for 3–32 players or teams — seed it, print it, run your pickleball event. Free, no sign-up.';
+  }
+
+  buildNameInputs(clamp($('count').value,3,32)||8);
   generate();
 })();
 </script>
