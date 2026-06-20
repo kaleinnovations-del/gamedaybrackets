@@ -351,6 +351,8 @@
   function pkey(a,b){ return Math.min(a,b)+'-'+Math.max(a,b); }
   function lt(a,b){ for(var i=0;i<a.length;i++){ if(a[i]!==b[i]) return a[i]<b[i]; } return false; }
   function minMixerRounds(n){ var courts=Math.floor(n/4); if(courts<1) return 1; return Math.ceil((n*(n-1)/2)/(2*courts)); }
+  // divisible-by-4 sizes have zero packing slack; add 2 rounds so everyone can still partner everyone
+  function coverageRounds(n){ var m=minMixerRounds(n); return (n%4===0 && n>=16) ? m+2 : m; }
   function pickPartner(a, cand, played, games){
     var best=cand[0], bestK=null;
     cand.forEach(function(x){ var k=[(played[pkey(a,x)]||0), games[x], Math.random()]; if(!bestK||lt(k,bestK)){bestK=k;best=x;} });
@@ -369,9 +371,10 @@
     var n=names.length, courts=Math.floor(n/4);
     if(courts<1) return {schedule:[], rounds:0, minRounds:0};
     var minRounds=minMixerRounds(n);
-    var rounds=requestedRounds||minRounds;
+    var rounds=requestedRounds||coverageRounds(n);
+    var maxAtt = n<=16 ? 1200 : (n<=24 ? 500 : 250); // cap compute so big fields don't freeze the browser
     var best=null, bestKey=null;
-    for(var attempt=0; attempt<1200; attempt++){
+    for(var attempt=0; attempt<maxAtt; attempt++){
       var played={}, opp={}, games=new Array(n).fill(0), sched=[];
       for(var r=0;r<rounds;r++){
         var pool=[]; for(var i=0;i<n;i++) pool.push(i);
@@ -405,11 +408,16 @@
   }
   function renderMixer(out){
     var mx=state.mixer, names=state.names, n=names.length;
-    var full = mx.rounds>=mx.minRounds;
+    // compute ACTUAL partner coverage from the schedule so the note never overclaims
+    var partnered={}; for(var i=0;i<n;i++) partnered[i]={};
+    mx.schedule.forEach(function(rd){ rd.forEach(function(ct){ ct.forEach(function(P){ partnered[P[0]][P[1]]=1; partnered[P[1]][P[0]]=1; }); }); });
+    var everyone=true; for(var i=0;i<n;i++){ if(Object.keys(partnered[i]).length < n-1){ everyone=false; break; } }
+    var msg;
+    if(everyone) msg='Over all '+mx.rounds+' rounds, everyone partners with everyone.';
+    else if(mx.rounds < mx.minRounds) msg='Showing '+mx.rounds+' rounds — play '+mx.minRounds+'+ for everyone to partner with everyone.';
+    else msg='Showing '+mx.rounds+' rounds — most players partner with everyone (at this size a few pairings can’t all fit).';
     var note=document.createElement('p'); note.style.cssText='color:#7a7163;font-size:.85rem;margin:6px 0 12px';
-    note.textContent = 'Rotating partners — a new partner every round. ' + (full
-      ? 'Over all '+mx.rounds+' rounds, everyone partners with everyone.'
-      : 'Showing '+mx.rounds+' rounds (play '+mx.minRounds+' for everyone to partner everyone).');
+    note.textContent='Rotating partners — a new partner every round. '+msg;
     out.appendChild(note);
     var wrap=document.createElement('div'); wrap.className='rr-wrap';
     var sd=document.createElement('div'); sd.className='rr-sched';
@@ -453,11 +461,11 @@
     return 'Round '+(idx+1);
   }
 
-  function renderBracket(out, rounds, interactive){
+  function renderBracket(out, rounds, interactive, labelFn){
     var b=document.createElement('div'); b.className='bracket';
     rounds.forEach(function(round,ri){
       var col=document.createElement('div'); col.className='round';
-      var rh=document.createElement('h3'); rh.textContent=labelRound(ri,rounds.length); col.appendChild(rh);
+      var rh=document.createElement('h3'); rh.textContent=(labelFn||labelRound)(ri,rounds.length); col.appendChild(rh);
       round.forEach(function(match,mi){
         var mEl=document.createElement('div'); mEl.className='match';
         match.forEach(function(team,si){
@@ -517,22 +525,22 @@
 
   // Double elimination: correct winners-bracket structure + a losers-bracket skeleton, print-focused
   function renderDouble(out){
-    var note=document.createElement('p'); note.style.cssText='color:#7a7163;font-size:.85rem;margin:6px 0 0';
-    note.textContent='Winners bracket (top) and losers bracket (below). Print and fill in as you play — or let the Scoring Workbook advance teams for you.';
+    var note=document.createElement('p'); note.style.cssText='color:#7a7163;font-size:.85rem;margin:6px 0 12px';
+    note.innerHTML='<strong>Winners bracket</strong> below is interactive. The <strong>losers bracket</strong> is a correctly-sized print-and-fill skeleton — losers drop in as they\'re knocked out of the winners side. For automatic loser routing + scoring, the <a href="https://gamedaybrackets.gumroad.com/l/xhnlby?utm_source=brackettool&utm_medium=double_note&utm_campaign=cornhole_free_tool" target="_blank" rel="noopener">Scoring Workbook</a> does it for you.';
     out.appendChild(note);
     var wb=document.createElement('div'); wb.className='bracket-title'; wb.textContent='Winners bracket'; out.appendChild(wb);
     renderBracket(out, state.rounds, true); showChampion(out);
-    var lbTitle=document.createElement('div'); lbTitle.className='bracket-title'; lbTitle.textContent='Losers bracket (fill in)'; out.appendChild(lbTitle);
-    // losers bracket: blank slots sized to field; manual fill
+    // losers bracket: correct double-elim structure = pairs of rounds [S/4,S/4, S/8,S/8, ... 1,1]
     var size=nextPow2(state.names.length);
-    var lbRounds=[]; var teams=size/2;
-    // losers bracket has 2*(log2(size)-1) rounds; render blank match boxes per standard sizing
-    var r=size/2, first=true;
-    while(r>=1){
-      var matchesA=[]; for(var m=0;m<Math.max(1,r/2);m++) matchesA.push([null,null]); lbRounds.push(matchesA);
-      if(r===1) break; r=r/2;
+    var lbRounds=[];
+    for(var k=size/4; k>=1; k=k/2){
+      var ra=[]; for(var m=0;m<k;m++) ra.push([null,null]); lbRounds.push(ra);
+      var rb=[]; for(var m=0;m<k;m++) rb.push([null,null]); lbRounds.push(rb);
     }
-    renderBracket(out, lbRounds, false);
+    var lbTitle=document.createElement('div'); lbTitle.className='bracket-title'; lbTitle.textContent='Losers bracket (fill in)'; out.appendChild(lbTitle);
+    renderBracket(out, lbRounds, false, function(idx,total){ return idx===total-1 ? 'Losers Final' : 'Losers R'+(idx+1); });
+    var gfTitle=document.createElement('div'); gfTitle.className='bracket-title'; gfTitle.textContent='Grand Final'; out.appendChild(gfTitle);
+    renderBracket(out, [[[null,null]]], false, function(){ return 'Champion vs Losers winner'; });
   }
 
   function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
@@ -550,8 +558,8 @@
       state={format:'rr', names:names, schedule:buildRR(names)};
       render();
     } else if(fmt==='mixer'){
-      var minR=minMixerRounds(count);
-      var rounds=clamp($('rounds').value, 2, minR);
+      var maxR=coverageRounds(count);
+      var rounds=clamp($('rounds').value, 2, maxR);
       state={format:'mixer', names:names, mixer:buildMixer(names, rounds)};
       render();
     } else {
@@ -578,7 +586,7 @@
   $('rand').onclick=randomize;
   $('clear').onclick=clearNames;
   $('print').onclick=function(){ window.print(); };
-  function syncMixerRounds(count){ var m=minMixerRounds(count); $('rounds').max=m; $('rounds').value=m; }
+  function syncMixerRounds(count){ var m=coverageRounds(count); $('rounds').max=m; $('rounds').value=m; }
   $('format').onchange=function(){
     if(this.value==='mixer') syncMixerRounds(clamp($('count').value,4,32));
     buildNameInputs(clamp($('count').value,1,32)); generate();
