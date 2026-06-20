@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Free Cornhole Tournament Bracket Generator (Print & Share) | GameDay Brackets</title>
-<meta name="description" content="Free cornhole tournament bracket generator. Make a single or double elimination bracket for 4–32 teams, seed and randomize, then print or share. No sign-up.">
+<title>Free Tournament Bracket & Round Robin Generator (Cornhole, Pickleball & More) | GameDay Brackets</title>
+<meta name="description" content="Free tournament bracket generator — single & double elimination, round robin, and rotating-partner social mixer for cornhole, pickleball, and any tournament. Print or share, no sign-up.">
 <link rel="canonical" href="https://kaleinnovations-del.github.io/gamedaybrackets/">
 <meta name="theme-color" content="#1f7a3d">
 <!-- Open Graph -->
@@ -17,11 +17,11 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Cornhole Tournament Bracket Generator",
+  "name": "Tournament Bracket & Round Robin Generator",
   "applicationCategory": "SportsApplication",
   "operatingSystem": "Web",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "description": "Free generator for single and double elimination cornhole tournament brackets, 4 to 32 teams. Seed teams, randomize, print or share."
+  "description": "Free generator for single elimination, double elimination, round robin, and rotating-partner social mixer tournaments, 3 to 32 teams or players. For cornhole, pickleball and any tournament. Seed, randomize, print or share."
 }
 </script>
 <script type="application/ld+json">
@@ -129,8 +129,8 @@
 <header class="site">
   <div class="wrap">
     <span class="badge">Free • No sign-up • Print or share</span>
-    <h1 id="appTitle">Cornhole Tournament Bracket Generator</h1>
-    <p id="appSub">Single elimination, double elimination, or round robin for 3–32 teams — seed it, print it, run your tournament. Free, no sign-up.</p>
+    <h1 id="appTitle">Tournament Bracket &amp; Round Robin Generator</h1>
+    <p id="appSub">Single &amp; double elimination, round robin, or social mixer for 3–32 teams or players — cornhole, pickleball, or any backyard tournament. Seed it, print it, run it. Free, no sign-up.</p>
   </div>
 </header>
 
@@ -184,7 +184,7 @@
   </div>
 
   <section class="copy">
-    <h2>How to make a cornhole tournament bracket</h2>
+    <h2>How to make a tournament bracket</h2>
     <ol>
       <li>Enter your number of teams (3–32).</li>
       <li>Type each team or player name in its box — or leave them as auto-numbered teams.</li>
@@ -581,11 +581,17 @@
     sportMode='pickleball';
     $('appTitle').textContent='Pickleball Tournament, Round Robin & Mixer Generator';
     $('appSub').textContent='Social mixer (rotating partners), round robin, or elimination brackets for 3–32 players — seed it, print it, run your pickleball event. Free, no sign-up.';
+  } else if(q.get('sport')==='cornhole'){
+    sportMode='cornhole';
+    $('appTitle').textContent='Cornhole Tournament Bracket Generator';
+    $('appSub').textContent='Single elimination, double elimination, or round robin for 3–32 cornhole teams — seed it, print it, run your tournament. Free, no sign-up.';
   }
 
   buildNameInputs(clamp($('count').value,3,32)||8);
   generate();
 })();
 </script>
+<!-- GoatCounter privacy-friendly analytics -->
+<script data-goatcounter="https://kaleinnovations.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
