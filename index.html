@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free Cornhole Tournament Bracket Generator (Print & Share) | GameDay Brackets</title>
+<meta name="description" content="Free cornhole tournament bracket generator. Make a single or double elimination bracket for 4–32 teams, seed and randomize, then print or share. No sign-up.">
+<link rel="canonical" href="https://kaleinnovations-del.github.io/gamedaybrackets/">
+<meta name="theme-color" content="#1f7a3d">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Free Cornhole Tournament Bracket Generator">
+<meta property="og:description" content="Make a single or double elimination cornhole bracket for 4–32 teams, then print or share. Free, no sign-up.">
+<meta property="og:url" content="https://kaleinnovations-del.github.io/gamedaybrackets/">
+<!-- Structured data: app + FAQ (helps search ranking) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Cornhole Tournament Bracket Generator",
+  "applicationCategory": "SportsApplication",
+  "operatingSystem": "Web",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "Free generator for single and double elimination cornhole tournament brackets, 4 to 32 teams. Seed teams, randomize, print or share."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "How do I make a cornhole tournament bracket?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Enter the number of teams (4 to 32), type each team or player name, choose single or double elimination, and click Generate. Your seeded bracket is created instantly with byes handled automatically. Then print it or click winners to advance them." } },
+    { "@type": "Question", "name": "Is this cornhole bracket maker free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Generating, printing, and sharing brackets is completely free with no sign-up." } },
+    { "@type": "Question", "name": "Can the bracket track scores and standings automatically?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The free generator makes and prints brackets. For automatic score tracking, pool-play seeding, and live standings in Google Sheets or Excel, use the Cornhole Scoring Workbook." } }
+  ]
+}
+</script>
+<style>
+  :root{
+    --green:#1f7a3d; --green-d:#155a2c; --wood:#c8893f; --ink:#1b1b1b;
+    --paper:#fbf8f1; --line:#d8d0c2; --slot:#fff; --accent:#e4572e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5}
+  header.site{background:linear-gradient(135deg,var(--green),var(--green-d));color:#fff;padding:28px 20px}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+  header.site h1{margin:0 0 6px;font-size:1.7rem}
+  header.site p{margin:0;opacity:.92}
+  .badge{display:inline-block;background:rgba(255,255,255,.18);border-radius:999px;padding:3px 12px;font-size:.78rem;margin-bottom:10px;letter-spacing:.3px}
+  /* controls */
+  .controls{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:22px 0;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .controls label{display:block;font-weight:600;font-size:.85rem;margin-bottom:6px}
+  .controls input,.controls select,.controls textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:.95rem;font-family:inherit}
+  .controls textarea{min-height:120px;resize:vertical}
+  .names-cell{grid-column:1/-1}
+  .row-btns{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap}
+  button{cursor:pointer;font-weight:700;border:none;border-radius:9px;padding:11px 18px;font-size:.95rem}
+  .btn-go{background:var(--green);color:#fff}
+  .btn-go:hover{background:var(--green-d)}
+  .btn-sec{background:#efe9dc;color:var(--ink)}
+  .btn-sec:hover{background:#e6ddca}
+  .hint{font-size:.78rem;color:#6b6258;margin-top:4px}
+  /* bracket */
+  #out{overflow-x:auto;padding:10px 0 4px}
+  .bracket-title{font-weight:800;font-size:1.05rem;margin:18px 0 4px}
+  .bracket{display:flex;gap:46px;padding:12px 4px 24px;min-width:max-content}
+  .round{display:flex;flex-direction:column;justify-content:space-around;min-width:172px}
+  .round h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;color:#7a7163;text-align:center;margin:0 0 10px}
+  .match{display:flex;flex-direction:column;gap:4px;margin:9px 0;position:relative}
+  .slot{background:var(--slot);border:1px solid var(--line);border-left:4px solid var(--wood);border-radius:6px;padding:7px 9px;font-size:.9rem;min-height:34px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+  .slot .seed{color:#a99;font-size:.72rem;min-width:18px}
+  .slot .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .slot.win{border-left-color:var(--green);background:#f1faf3;font-weight:700}
+  .slot.bye{color:#b3a89a;font-style:italic}
+  .slot.clickable{cursor:pointer}
+  .slot.clickable:hover{background:#fef6ef;border-left-color:var(--accent)}
+  .champ{margin-top:8px;font-weight:800;color:var(--green-d)}
+  /* upsell */
+  .upsell{background:#fff;border:2px solid var(--green);border-radius:14px;padding:20px;margin:26px 0;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .upsell .u-txt{flex:1;min-width:240px}
+  .upsell h2{margin:0 0 6px;font-size:1.15rem;color:var(--green-d)}
+  .upsell p{margin:0;font-size:.93rem;color:#4a443c}
+  .upsell .cta{background:var(--accent);color:#fff;text-decoration:none;padding:13px 22px;border-radius:10px;font-weight:800;white-space:nowrap}
+  .upsell .cta:hover{background:#c8431f}
+  .u-sub{font-size:.78rem;color:#7a7163;margin-top:8px!important}
+  /* content */
+  section.copy{max-width:760px;margin:30px auto}
+  section.copy h2{font-size:1.25rem;margin:26px 0 8px}
+  section.copy h3{font-size:1rem;margin:18px 0 4px}
+  details{border-bottom:1px solid var(--line);padding:10px 0}
+  details summary{font-weight:600;cursor:pointer}
+  footer{background:#211d17;color:#cfc7b8;padding:26px 20px;margin-top:40px;font-size:.85rem}
+  footer a{color:#f0c989}
+  @media print{
+    header.site,.controls,.upsell,section.copy,footer,.no-print{display:none!important}
+    body{background:#fff}
+    .bracket{gap:30px}
+    .slot{border-left-color:#888}
+  }
+</style>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <span class="badge">Free • No sign-up • Print or share</span>
+    <h1>Cornhole Tournament Bracket Generator</h1>
+    <p>Make a seeded single or double elimination bracket for 4–32 teams in seconds — then print it for your tournament.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="controls" id="controls">
+    <div>
+      <label for="count">Number of teams</label>
+      <input type="number" id="count" min="3" max="32" value="8">
+      <div class="hint">3–32. Byes are added automatically.</div>
+    </div>
+    <div>
+      <label for="format">Format</label>
+      <select id="format">
+        <option value="single">Single elimination</option>
+        <option value="double">Double elimination (printable)</option>
+      </select>
+    </div>
+    <div>
+      <label for="tname">Tournament name (optional)</label>
+      <input type="text" id="tname" placeholder="e.g. Backyard Bag Toss 2026">
+    </div>
+    <div class="names-cell">
+      <label for="names">Team / player names — one per line (seed order, best first)</label>
+      <textarea id="names" placeholder="Team 1&#10;Team 2&#10;Team 3&#10;..."></textarea>
+      <div class="hint">Leave blank to auto-number teams. Names are placed top-seed vs bottom-seed automatically.</div>
+    </div>
+    <div class="row-btns">
+      <button class="btn-go" id="gen">Generate bracket</button>
+      <button class="btn-sec" id="rand">Randomize seeds</button>
+      <button class="btn-sec no-print" id="print" style="display:none">🖨️ Print</button>
+    </div>
+  </div>
+
+  <div id="out"></div>
+
+  <div class="upsell" id="upsell" style="display:none">
+    <div class="u-txt">
+      <h2>Stop writing in winners by hand</h2>
+      <p>The <strong>Cornhole Scoring Workbook</strong> does what a printout can't: enter scores and it <strong>advances winners automatically</strong>, runs <strong>pool play</strong> to seed fairly, and keeps <strong>live standings</strong> — in Google Sheets or Excel, on any phone at the event.</p>
+      <p class="u-sub">Up to 16 teams • Pool play + single & double elimination • Printable sheets included • Instant download</p>
+    </div>
+    <a class="cta" id="cta" href="https://gamedaybrackets.gumroad.com/l/xhnlby?utm_source=brackettool&utm_medium=cta&utm_campaign=cornhole_free_tool" target="_blank" rel="noopener">Get the Scoring Workbook — $11.99</a>
+  </div>
+
+  <section class="copy">
+    <h2>How to make a cornhole tournament bracket</h2>
+    <ol>
+      <li>Enter your number of teams (3–32).</li>
+      <li>Type each team or player name, one per line, in seed order (best team first). Or leave it blank to auto-number.</li>
+      <li>Pick single or double elimination and click <strong>Generate bracket</strong>.</li>
+      <li>Click a name to advance the winner, or hit <strong>Print</strong> and fill it in by hand at the event.</li>
+    </ol>
+
+    <h2>Single vs double elimination</h2>
+    <p><strong>Single elimination</strong> is fastest — one loss and you're out. Great for big fields and tight time slots. <strong>Double elimination</strong> gives every team a second chance through a losers bracket, so a single bad round doesn't end your day; it takes longer but feels fairer for league nights and money tournaments.</p>
+
+    <h2>Frequently asked questions</h2>
+    <details><summary>Is this really free?</summary><p>Yes — generating, printing, and sharing brackets is free with no sign-up.</p></details>
+    <details><summary>What's the difference between this and the paid workbook?</summary><p>This free tool makes and prints the bracket. The <a href="https://gamedaybrackets.gumroad.com/l/xhnlby?utm_source=brackettool&utm_medium=faq&utm_campaign=cornhole_free_tool" target="_blank" rel="noopener">Cornhole Scoring Workbook</a> adds automatic score tracking, pool-play seeding, and live standings in Google Sheets/Excel — so the bracket fills itself in as you play.</p></details>
+    <details><summary>How are byes handled?</summary><p>If your team count isn't a power of two (8, 16, 32…), the top seeds automatically get first-round byes so the bracket stays balanced.</p></details>
+    <details><summary>Can I use it on my phone?</summary><p>Yes, the generator works in any mobile browser. For scoring during the event on your phone, the Sheets-based workbook is the smoother option.</p></details>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <strong>GameDay Brackets</strong> — tournament tools that take the headache out of running the bracket.<br>
+    Free generator for backyard tournaments, leagues, fundraisers, tailgates &amp; bar nights.
+    Need scoring &amp; standings? <a href="https://gamedaybrackets.gumroad.com/l/xhnlby?utm_source=brackettool&utm_medium=footer&utm_campaign=cornhole_free_tool" target="_blank" rel="noopener">Get the Cornhole Scoring Workbook →</a>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+
+  // standard bracket seed order for a power-of-two size
+  function seedOrder(size){
+    var rounds=Math.log2(size), arr=[1,2];
+    for(var r=1;r<rounds;r++){
+      var next=[], sum=arr.length*2+1;
+      for(var i=0;i<arr.length;i++){ next.push(arr[i]); next.push(sum-arr[i]); }
+      arr=next;
+    }
+    return arr;
+  }
+  function nextPow2(n){ var p=1; while(p<n) p*=2; return p; }
+
+  function readNames(count){
+    var raw=$('names').value.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+    var names=[];
+    for(var i=0;i<count;i++){ names.push(raw[i] || ('Team '+(i+1))); }
+    return names;
+  }
+
+  function buildSingle(names){
+    var n=names.length, size=nextPow2(n), order=seedOrder(size);
+    // seed -> name or null(BYE)
+    var bySeed=order.map(function(seed){ return seed<=n ? {seed:seed,name:names[seed-1]} : {seed:seed,name:null}; });
+    var rounds=[], cur=[];
+    for(var i=0;i<bySeed.length;i+=2){ cur.push([bySeed[i],bySeed[i+1]]); }
+    rounds.push(cur);
+    var matches=cur.length;
+    while(matches>1){ matches/=2; var blanks=[]; for(var m=0;m<matches;m++) blanks.push([null,null]); rounds.push(blanks); }
+    // auto-advance byes in round 1
+    return rounds;
+  }
+
+  var state=null;
+
+  function render(){
+    var out=$('out'); out.innerHTML='';
+    if(!state) return;
+    var tname=$('tname').value.trim();
+    if(tname){ var h=document.createElement('div'); h.className='bracket-title'; h.textContent=tname; out.appendChild(h); }
+    if(state.format==='double'){ renderDouble(out); return; }
+    renderBracket(out, state.rounds, true);
+    showChampion(out);
+  }
+
+  function labelRound(idx,total){
+    var fromEnd=total-idx;
+    if(fromEnd===1) return 'Final';
+    if(fromEnd===2) return 'Semifinals';
+    if(fromEnd===3) return 'Quarterfinals';
+    return 'Round '+(idx+1);
+  }
+
+  function renderBracket(out, rounds, interactive){
+    var b=document.createElement('div'); b.className='bracket';
+    rounds.forEach(function(round,ri){
+      var col=document.createElement('div'); col.className='round';
+      var rh=document.createElement('h3'); rh.textContent=labelRound(ri,rounds.length); col.appendChild(rh);
+      round.forEach(function(match,mi){
+        var mEl=document.createElement('div'); mEl.className='match';
+        match.forEach(function(team,si){
+          var s=document.createElement('div'); s.className='slot';
+          var isBye = team && (team.name===null || team.name===undefined);
+          if(isBye){ s.className+=' bye'; s.innerHTML='<span class="nm">— bye —</span>'; }
+          else if(team===null){ s.innerHTML='<span class="nm">&nbsp;</span>'; }
+          else {
+            s.innerHTML='<span class="seed">'+team.seed+'</span><span class="nm">'+escapeHtml(team.name||'')+'</span>';
+            if(interactive){ s.className+=' clickable'; s.onclick=function(){ advance(ri,mi,si); }; }
+          }
+          if(team && team.winner) s.className+=' win';
+          mEl.appendChild(s);
+        });
+        col.appendChild(mEl);
+      });
+      b.appendChild(col);
+    });
+    out.appendChild(b);
+  }
+
+  // advance winner of round ri, match mi, slot si into next round
+  function advance(ri, mi, si){
+    var rounds=state.rounds, match=rounds[ri][mi], team=match[si];
+    if(!team) return;
+    match[0] && (match[0].winner=false); match[1] && (match[1].winner=false);
+    team.winner=true;
+    if(ri+1<rounds.length){
+      var nextMatch=rounds[ri+1][Math.floor(mi/2)];
+      nextMatch[mi%2]={seed:team.seed,name:team.name};
+      // clear downstream
+      for(var r=ri+2;r<rounds.length;r++){ rounds[r].forEach(function(mm){ mm[0]=mm[1]=null; }); }
+    }
+    render();
+  }
+
+  // auto-advance any round-1 team that faces a BYE
+  function autoByes(){
+    var r0=state.rounds[0];
+    var isBye=function(t){ return t && (t.name===null || t.name===undefined); };
+    r0.forEach(function(match,mi){
+      var a=match[0], b=match[1];
+      if(a && !isBye(a) && isBye(b)){ advanceSilently(0,mi,0); }       // a real, b bye -> a advances
+      else if(b && !isBye(b) && isBye(a)){ advanceSilently(0,mi,1); }  // b real, a bye -> b advances
+    });
+  }
+  function advanceSilently(ri,mi,si){
+    var match=state.rounds[ri][mi], team=match[si]; if(!team) return; team.winner=true;
+    var nm=state.rounds[ri+1][Math.floor(mi/2)]; nm[mi%2]={seed:team.seed,name:team.name};
+  }
+
+  function showChampion(out){
+    var last=state.rounds[state.rounds.length-1][0];
+    var w=last[0]&&last[0].winner?last[0]:(last[1]&&last[1].winner?last[1]:null);
+    if(w){ var c=document.createElement('div'); c.className='champ'; c.textContent='🏆 Champion: '+w.name; out.appendChild(c); }
+  }
+
+  // Double elimination: correct winners-bracket structure + a losers-bracket skeleton, print-focused
+  function renderDouble(out){
+    var note=document.createElement('p'); note.style.cssText='color:#7a7163;font-size:.85rem;margin:6px 0 0';
+    note.textContent='Winners bracket (top) and losers bracket (below). Print and fill in as you play — or let the Scoring Workbook advance teams for you.';
+    out.appendChild(note);
+    var wb=document.createElement('div'); wb.className='bracket-title'; wb.textContent='Winners bracket'; out.appendChild(wb);
+    renderBracket(out, state.rounds, true); showChampion(out);
+    var lbTitle=document.createElement('div'); lbTitle.className='bracket-title'; lbTitle.textContent='Losers bracket (fill in)'; out.appendChild(lbTitle);
+    // losers bracket: blank slots sized to field; manual fill
+    var size=nextPow2(state.names.length);
+    var lbRounds=[]; var teams=size/2;
+    // losers bracket has 2*(log2(size)-1) rounds; render blank match boxes per standard sizing
+    var r=size/2, first=true;
+    while(r>=1){
+      var matchesA=[]; for(var m=0;m<Math.max(1,r/2);m++) matchesA.push([null,null]); lbRounds.push(matchesA);
+      if(r===1) break; r=r/2;
+    }
+    renderBracket(out, lbRounds, false);
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function generate(){
+    var count=Math.max(3,Math.min(32,parseInt($('count').value)||8));
+    $('count').value=count;
+    var names=readNames(count);
+    state={format:$('format').value, names:names, rounds:buildSingle(names)};
+    autoByes();
+    render();
+    $('print').style.display='';
+    $('upsell').style.display='';
+    $('upsell').scrollIntoView===undefined;
+  }
+
+  function randomize(){
+    var count=Math.max(3,Math.min(32,parseInt($('count').value)||8));
+    var names=readNames(count);
+    for(var i=names.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=names[i];names[i]=names[j];names[j]=t; }
+    $('names').value=names.join('\n');
+    generate();
+  }
+
+  $('gen').onclick=generate;
+  $('rand').onclick=randomize;
+  $('print').onclick=function(){ window.print(); };
+
+  // allow ?teams=16&format=double presets from landing pages
+  var q=new URLSearchParams(location.search);
+  if(q.get('teams')) $('count').value=q.get('teams');
+  if(q.get('format')==='double') $('format').value='double';
+  generate();
+})();
+</script>
+</body>
+</html>

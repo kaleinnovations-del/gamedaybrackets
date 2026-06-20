@@ -1,0 +1,6 @@
+# Local tooling artifacts — never publish
+.gstack/
+.claude-flow/
+.DS_Store
+*.log
+node_modules/
