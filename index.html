@@ -123,6 +123,17 @@
     .rr-wrap{gap:18px}
     .rr-match .sc input,.name-grid input{border-color:#888}
   }
+  #email-gate-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center}
+  #email-gate-overlay.open{display:flex}
+  #email-gate-box{background:#fff;border-radius:14px;padding:32px 28px;max-width:420px;width:90%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.25)}
+  #email-gate-box h2{margin:0 0 8px;font-size:1.35rem;color:var(--ink)}
+  #email-gate-box p{margin:0 0 20px;color:#555;font-size:.95rem}
+  #email-gate-input{width:100%;padding:11px 14px;border:2px solid var(--line);border-radius:8px;font-size:1rem;margin-bottom:12px;box-sizing:border-box}
+  #email-gate-input:focus{outline:none;border-color:var(--green)}
+  #email-gate-submit{width:100%;padding:12px;background:var(--green);color:#fff;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer}
+  #email-gate-submit:hover{background:var(--green-d)}
+  #email-gate-skip{display:block;margin-top:10px;font-size:.82rem;color:#888;cursor:pointer;text-decoration:underline}
+  #email-gate-err{color:#c00;font-size:.85rem;margin:-6px 0 8px;display:none}
 </style>
 </head>
 <body>
@@ -133,6 +144,18 @@
     <p id="appSub">Single &amp; double elimination, round robin, or social mixer for 3–32 teams or players — cornhole, pickleball, or any backyard tournament. Seed it, print it, run it. Free, no sign-up.</p>
   </div>
 </header>
+
+<!-- Email gate modal (shown once before first print) -->
+<div id="email-gate-overlay" role="dialog" aria-modal="true" aria-labelledby="egate-title">
+  <div id="email-gate-box">
+    <h2 id="egate-title">Get your bracket updates</h2>
+    <p>Drop your email and we'll send tips for running a smooth tournament — then your bracket prints instantly.</p>
+    <input id="email-gate-input" type="email" placeholder="your@email.com" autocomplete="email">
+    <div id="email-gate-err">Please enter a valid email.</div>
+    <button id="email-gate-submit">Print my bracket →</button>
+    <span id="email-gate-skip">No thanks, just print</span>
+  </div>
+</div>
 
 <main class="wrap">
   <div class="controls" id="controls">
@@ -606,7 +629,38 @@
   $('gen').onclick=generate;
   $('rand').onclick=randomize;
   $('clear').onclick=clearNames;
-  $('print').onclick=function(){ window.print(); };
+
+  // Email gate: show once before first print; bypass if cookie set
+  function hasEmailCookie(){ return document.cookie.split(';').some(function(c){ return c.trim().startsWith('gdb_em='); }); }
+  function setEmailCookie(){ document.cookie='gdb_em=1;max-age=31536000;path=/;SameSite=Lax'; }
+  function captureEmail(email){
+    try{
+      fetch('http://localhost:5678/webhook/gdb-email',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:email,source:'print-gate'})
+      });
+    }catch(e){}
+    setEmailCookie();
+  }
+  function doPrint(){ window.print(); }
+  function showEmailGate(){
+    var ov=$('email-gate-overlay');
+    ov.classList.add('open');
+    $('email-gate-input').focus();
+  }
+  function closeGate(){ $('email-gate-overlay').classList.remove('open'); }
+  $('email-gate-submit').onclick=function(){
+    var email=($('email-gate-input').value||'').trim();
+    var err=$('email-gate-err');
+    if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.style.display='block'; return; }
+    err.style.display='none';
+    captureEmail(email);
+    closeGate();
+    doPrint();
+  };
+  $('email-gate-skip').onclick=function(){ setEmailCookie(); closeGate(); doPrint(); };
+  $('email-gate-input').onkeydown=function(e){ if(e.key==='Enter') $('email-gate-submit').click(); };
+  $('print').onclick=function(){ if(hasEmailCookie()){ doPrint(); } else { showEmailGate(); } };
   function syncMixerRounds(count){ var m=coverageRounds(count); $('rounds').max=m; $('rounds').value=m; }
   $('format').onchange=function(){
     if(this.value==='mixer') syncMixerRounds(clamp($('count').value,4,32));
