@@ -216,16 +216,37 @@
   var $=function(id){return document.getElementById(id)};
   function clamp(v,lo,hi){ v=parseInt(v)||0; return Math.max(lo,Math.min(hi,v)); }
 
-  // sport/format-aware upsell so pickleball traffic funnels to the pickleball product
+  // sport/format-aware upsell so each sport's traffic funnels to the right product
   var sportMode='cornhole';
   var PRODUCTS={
     cornhole:{url:'https://gamedaybrackets.gumroad.com/l/xhnlby', label:'Get the Scoring Workbook — $11.99', name:'Cornhole Scoring Workbook'},
     pickleball_mixer:{url:'https://gamedaybrackets.gumroad.com/l/trrjsh', label:'Get the Social Mixer Workbook — $9.99', name:'Pickleball Social Doubles Mixer'},
-    pickleball_rr:{url:'https://gamedaybrackets.gumroad.com/l/zxktbu', label:'Get the Round Robin Workbook — $9.99', name:'Pickleball Doubles Round Robin'}
+    pickleball_rr:{url:'https://gamedaybrackets.gumroad.com/l/zxktbu', label:'Get the Round Robin Workbook — $9.99', name:'Pickleball Doubles Round Robin'},
+    universal:{url:'https://gamedaybrackets.gumroad.com/l/srwlt', label:'Get the Universal Tournament Bracket — $9.99', name:'Universal Tournament Bracket'}
+  };
+  // sport presets driven by ?sport= on landing pages. bucket = which product the upsell funnels to.
+  var SPORTS={
+    cornhole:{bucket:'cornhole', title:'Cornhole Tournament Bracket Generator',
+      sub:'Single elimination, double elimination, or round robin for 3–32 cornhole teams — seed it, print it, run your tournament. Free, no sign-up.'},
+    pickleball:{bucket:'pickleball', title:'Pickleball Tournament, Round Robin & Mixer Generator',
+      sub:'Social mixer (rotating partners), round robin, or elimination brackets for 3–32 players — seed it, print it, run your pickleball event. Free, no sign-up.'},
+    volleyball:{bucket:'universal', title:'Volleyball Tournament Bracket Generator',
+      sub:'Single elimination, double elimination, or pool-play round robin for 3–32 volleyball teams — seed it, print it, run your tournament. Free, no sign-up.'},
+    darts:{bucket:'universal', title:'Darts Tournament Bracket Generator',
+      sub:'Single or double elimination and round robin for 3–32 darts players — seed it, print it, run your bar league or tournament. Free, no sign-up.'},
+    pingpong:{bucket:'universal', title:'Ping Pong / Table Tennis Tournament Bracket Generator',
+      sub:'Single elimination, double elimination, or round robin for 3–32 table tennis players — seed it, print it, run your tournament. Free, no sign-up.'},
+    office:{bucket:'universal', title:'Office Tournament Bracket Generator',
+      sub:'Run a March-Madness-style office bracket for any game — 3–32 players or teams, single or double elimination, print or play online. Free, no sign-up.'},
+    esports:{bucket:'universal', title:'Esports Tournament Bracket Generator',
+      sub:'Single or double elimination and round robin for 3–32 players or teams — seed it, share it, run your gaming tournament. Free, no sign-up.'},
+    any:{bucket:'universal', title:'Tournament Bracket Generator (Any Sport)',
+      sub:'Single elimination, double elimination, or round robin for 3–32 teams or players in any head-to-head game — seed it, print it, run your tournament. Free, no sign-up.'}
   };
   function updateUpsell(){
     var fmt=$('format').value, p;
     if(sportMode==='pickleball') p=(fmt==='mixer')?PRODUCTS.pickleball_mixer:PRODUCTS.pickleball_rr;
+    else if(sportMode==='universal') p=PRODUCTS.universal;
     else p=PRODUCTS.cornhole;
     var cta=$('cta');
     cta.href=p.url+'?utm_source=brackettool&utm_medium=cta&utm_campaign='+sportMode+'_'+fmt;
@@ -601,14 +622,12 @@
   var q=new URLSearchParams(location.search);
   if(q.get('teams')) $('count').value=clamp(q.get('teams'),3,32);
   var f=q.get('format'); if(f==='single'||f==='double'||f==='rr'||f==='mixer') $('format').value=f;
-  if(q.get('sport')==='pickleball'){
-    sportMode='pickleball';
-    $('appTitle').textContent='Pickleball Tournament, Round Robin & Mixer Generator';
-    $('appSub').textContent='Social mixer (rotating partners), round robin, or elimination brackets for 3–32 players — seed it, print it, run your pickleball event. Free, no sign-up.';
-  } else if(q.get('sport')==='cornhole'){
-    sportMode='cornhole';
-    $('appTitle').textContent='Cornhole Tournament Bracket Generator';
-    $('appSub').textContent='Single elimination, double elimination, or round robin for 3–32 cornhole teams — seed it, print it, run your tournament. Free, no sign-up.';
+  var spParam=(q.get('sport')||'').toLowerCase();
+  if(SPORTS[spParam]){
+    var s=SPORTS[spParam];
+    sportMode=s.bucket;
+    $('appTitle').textContent=s.title;
+    $('appSub').textContent=s.sub;
   }
 
   if($('format').value==='mixer') syncMixerRounds(clamp($('count').value,4,32));
